@@ -1,0 +1,200 @@
+:root {
+  --bg: #f5f2ea;
+  --paper: #fffdf8;
+  --ink: #1e1c17;
+  --muted: #6a665a;
+  --line: #e0dbcd;
+  --on: #0f7f3a;
+  --on-ink: #ffffff;
+  --off: #e8e3d5;
+  --accent: #1e1c17;
+  --accent-ink: #fffdf8;
+  --danger: #b3321f;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15140f;
+    --paper: #1f1d17;
+    --ink: #f2eee2;
+    --muted: #a5a092;
+    --line: #35322a;
+    --on: #2bbf66;
+    --on-ink: #06210f;
+    --off: #2a2820;
+    --accent: #f2eee2;
+    --accent-ink: #15140f;
+    --danger: #ff8d7a;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Gabarito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+:focus-visible { outline: 3px solid var(--on); outline-offset: 2px; }
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
+  display: grid;
+  gap: 28px;
+}
+
+h1 { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -.02em; margin: 0; }
+h2 { font-size: 15px; font-weight: 700; margin: 0 0 8px; color: var(--muted); }
+.count { font-weight: 500; margin-left: 2px; }
+.lede { font-size: 20px; margin: -16px 0 0; text-wrap: pretty; }
+.note { color: var(--muted); font-size: 15px; margin: 6px 0 0; }
+.error { color: var(--danger); font-size: 15px; margin: 0; }
+
+/* The switch is the app: the whole panel is the tap target. */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 168px;
+  padding: 24px;
+  text-align: left;
+  border: 0;
+  border-radius: 24px;
+  background: var(--off);
+  color: var(--ink);
+  transition: background-color .2s ease, color .2s ease;
+}
+.hero.on { background: var(--on); color: var(--on-ink); }
+.hero-text { display: grid; gap: 6px; }
+.hero strong { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.hero-text span { font-size: 16px; text-wrap: pretty; }
+.knob-track {
+  flex: none;
+  width: 72px;
+  height: 42px;
+  padding: 4px;
+  border-radius: 21px;
+  background: var(--muted);
+  transition: background-color .2s ease;
+}
+.hero.on .knob-track { background: var(--on-ink); }
+.knob {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--paper);
+  transition: transform .2s ease, background-color .2s ease;
+}
+.hero.on .knob { transform: translateX(30px); background: var(--on); }
+@media (prefers-reduced-motion: reduce) {
+  .hero, .knob, .knob-track { transition: none; }
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 8px 8px 8px 14px;
+}
+.row + .row { border-top: 1px solid var(--line); }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.is-on .dot { background: var(--on); }
+.person { flex: 1; min-width: 0; display: grid; }
+.name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.handle { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.left { flex: none; color: var(--on); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+.actions { flex: none; display: flex; align-items: center; gap: 2px; }
+
+.primary, .secondary {
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; }
+.primary.small { min-height: 44px; }
+.secondary { flex: none; background: transparent; border: 1.5px solid var(--ink); }
+.quiet {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.quiet:hover { color: var(--ink); }
+.link {
+  justify-self: start;
+  min-height: 44px;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  /* Below 16px, iOS zooms the page on focus. */
+  font-size: 17px;
+}
+input:focus { border-color: var(--ink); outline: none; }
+label { display: grid; gap: 6px; font-weight: 500; font-size: 15px; }
+.stack { display: grid; gap: 16px; }
+.inline { display: flex; gap: 8px; }
+.inline input { flex: 1; min-width: 0; }
+
+.share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.share h2 { margin-bottom: 2px; }
+.share code { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 17px; overflow-wrap: anywhere; }
+.stack-tight { display: grid; gap: 6px; }
+.time-links { display: flex; gap: 16px; }
+.time-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.time-form label { flex: 1 1 110px; }
+.later { flex: none; max-width: 42%; text-align: right; color: var(--muted); font-weight: 700; font-size: 14px; }
+.secondary.small { min-height: 44px; }
+.plan-list { margin-bottom: 12px; }
+.plan { display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px 14px; }
+.plan + .plan { border-top: 1px solid var(--line); }
+.plan-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.plan-text .handle { white-space: normal; }
+.plan-note { overflow-wrap: anywhere; }
+.plan .primary, .plan .secondary { flex: none; }
+.plan-form { margin-top: 4px; }
+.auth { padding-top: 12vh; }
