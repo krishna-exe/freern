@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright, expect
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'scripts'))
 from db import sql
 
-H = sys.argv[1]; URL = 'http://localhost:5199/'
+H = sys.argv[1]; URL = os.environ.get('E2E_URL', 'http://localhost:5199/')
 t = ''.join(random.choices(string.ascii_lowercase, k=4))
 a, b, c = f'e2ea_{t}', f'e2eb_{t}', f'e2ec_{t}'
 LONG = 'Sam With A Really Very Long Display Name'
