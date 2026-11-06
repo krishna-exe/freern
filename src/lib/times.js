@@ -1,4 +1,9 @@
+const HOUR = 3600000
 const DAY = 86400000
+const SATURDAY = 6
+
+// How long a plan stays listed after it starts.
+export const PLAN_VISIBLE_AFTER_START_MS = 2 * HOUR
 
 export function freeState(freeFrom, freeUntil, now) {
   if (!freeUntil || new Date(freeUntil).getTime() <= now) return 'off'
@@ -44,3 +49,20 @@ const dayLabel = (t, now) => {
 
 export const whenLabel = (t, now) => `${dayLabel(t, now)}, ${clock(t)}`
 export const rangeLabel = (from, until, now) => `${dayLabel(from, now)}, ${clock(from)} – ${clock(until)}`
+
+// Quick dates for a new plan, leaving out any that have passed or repeat another.
+export function planShortcuts(now) {
+  const dayAt = (daysAhead, hour) => {
+    const d = new Date(now)
+    d.setDate(d.getDate() + daysAhead)
+    return d.setHours(hour, 0, 0, 0)
+  }
+  const today = new Date(now).getDay()
+  const toSaturday = (SATURDAY - today + 7) % 7 || 7
+  const shortcuts = [
+    { label: 'Tonight', at: dayAt(0, 20) },
+    { label: 'Tomorrow', at: dayAt(1, 19) },
+  ]
+  if (toSaturday > 1) shortcuts.push({ label: 'Saturday', at: dayAt(toSaturday, 19) })
+  return shortcuts.filter((s) => s.at > now)
+}

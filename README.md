@@ -17,8 +17,26 @@ See which friends are free to call or hang out. Flip a switch, share your user I
 3. Copy `.env.example` to `.env.local` and fill in the URL and anon key.
 4. `npm install && npm run dev`
 
+Notifications also need `scripts/setup_notifications.py` and both functions in `supabase/functions` deployed. See that script for details.
+
 ## Tests
 
-`tests/access.mjs` signs up users and tries to break the privacy rules. It leaves those users behind, so use a throwaway project:
+Fast privacy checks, with no account needed:
+
+    node tests/local-backend.mjs supabase/migrations/*.sql
+    SKIP_REALTIME=1 SKIP_FUNCTIONS=1 SUPABASE_URL=http://localhost:54399 SUPABASE_ANON_KEY=test node --experimental-websocket tests/access.mjs
+
+Against the real project, including live updates, the browser flow and who gets notified:
 
     SUPABASE_URL=... SUPABASE_ANON_KEY=... node --experimental-websocket tests/access.mjs
+    SENDER_DEPLOYED=1 python3 tests/notifications.py
+    npm run dev -- --port 5199 &
+    python tests/e2e.py SCREENSHOT_DIR
+    python3 scripts/clean_test_users.py
+
+## How it stays cheap as it grows
+
+- Screens load through one call, `get_home`, built from small functions in `private`.
+- A change pings only the people it affects, on their own `user:<id>` topic. Pings carry no data.
+- Notifications go through a queue, so tapping the switch never waits on a push service.
+- Old rows are cleaned up daily by `private.clean_up_old_rows`.
