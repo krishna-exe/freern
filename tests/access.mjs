@@ -105,7 +105,7 @@ check('end in the past rejected', Boolean((await bob.c.rpc('set_times', { from_a
 check('far-future status rejected', Boolean((await bob.c.rpc('set_times', { from_at: soon(60), until_at: soon(60 * 24 * 30) })).error))
 await bob.c.rpc('set_free', { is_free: true })
 const reset = await status(alice, bob)
-check('switching on replaces a future window', new Date(reset.free_from) <= new Date(), reset)
+check('switching on leaves no start time', reset.free_from === null && new Date(reset.free_until) > new Date(), reset)
 await bob.c.rpc('set_free', { is_free: false })
 check('switching off clears both times', !(await status(alice, bob)).free_from)
 
@@ -135,6 +135,33 @@ await bob.c.from('plans').delete().eq('id', planId)
 check('friend cannot delete plan', await seesPlan(alice))
 check('friend can leave', !(await bob.c.rpc('respond_plan', { plan: planId, going: false })).error)
 check('leaving removes response', !(await respondents(alice)).includes(bob.id))
+
+// Notes
+const noteOf = async (u, of) => (await rows(u.c.from('statuses').select('note, note_until').eq('user_id', of.id)))[0]
+check('can set a note', !(await bob.c.rpc('set_note', { body: '  down for chai  ' })).error)
+const seen = await noteOf(alice, bob)
+check('friend sees the note, trimmed', seen?.note === 'down for chai', seen)
+const noteHours = (new Date(seen?.note_until) - Date.now()) / 3600000
+check('note lasts about 24 hours', noteHours > 23.9 && noteHours <= 24, seen)
+check('stranger cannot see the note', !(await noteOf(carol, bob)))
+check('note over 60 characters rejected', Boolean((await bob.c.rpc('set_note', { body: 'x'.repeat(61) })).error))
+const forgedNote = await bob.c.from('statuses').update({ note: 'hi', note_until: '2099-01-01' }).eq('user_id', bob.id)
+check('cannot write a note directly', Boolean(forgedNote.error), forgedNote)
+await bob.c.rpc('set_free', { is_free: false })
+check('switching off keeps the note', (await noteOf(alice, bob)).note === 'down for chai')
+await bob.c.rpc('set_note', { body: '' })
+const cleared = await noteOf(alice, bob)
+check('clearing removes the note', cleared.note === null && cleared.note_until === null, cleared)
+check('anon cannot set a note', Boolean((await client().rpc('set_note', { body: 'x' })).error))
+
+// Pictures
+check('can pick a picture', !(await bob.c.from('profiles').update({ avatar: '🦊' }).eq('id', bob.id)).error)
+const pic = async (u, of) => (await rows(u.c.from('profiles').select('avatar').eq('id', of.id)))[0]?.avatar
+check('friend sees the picture', (await pic(alice, bob)) === '🦊')
+check('picture outside the set rejected', Boolean((await bob.c.from('profiles').update({ avatar: 'https://evil.example/x.png' }).eq('id', bob.id)).error))
+await bob.c.from('profiles').update({ avatar: '🐼' }).eq('id', alice.id)
+check('cannot change someone else\'s picture', (await pic(alice, alice)) === null)
+check('can go back to initials', !(await bob.c.from('profiles').update({ avatar: null }).eq('id', bob.id)).error)
 
 // Crossed requests
 check('crossed: first requests', (await carol.c.rpc('add_friend', { friend_handle: alice.handle })).data === 'requested')

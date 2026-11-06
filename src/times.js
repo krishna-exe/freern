@@ -5,6 +5,9 @@ export function freeState(freeFrom, freeUntil, now) {
   return freeFrom && new Date(freeFrom).getTime() > now ? 'later' : 'on'
 }
 
+export const activeNote = (person, now) =>
+  person.note && new Date(person.noteUntil).getTime() > now ? person.note : ''
+
 export const clock = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
 const atTime = (hhmm, now) => {
