@@ -1,11 +1,11 @@
 import { whatsappLink } from '../lib/api'
 import { activeNote, clock, freeState, rangeLabel } from '../lib/times'
 
-export function Avatar({ person, large }) {
+export function Avatar({ person, large, small }) {
   const initials = person.name.trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0]).join('').toUpperCase()
   let hue = 0
   for (const c of person.handle) hue = (hue * 31 + c.charCodeAt(0)) % 360
-  const className = `avatar${large ? ' large' : ''}${person.avatar ? ' picture' : ''}`
+  const className = `avatar${large ? ' large' : ''}${small ? ' small' : ''}${person.avatar ? ' picture' : ''}`
   return <span className={className} style={{ '--hue': hue }} aria-hidden="true">{person.avatar ?? initials}</span>
 }
 
@@ -40,5 +40,17 @@ export function MessageLink({ friend, withLabel }) {
       </svg>
       {withLabel && 'Message'}
     </a>
+  )
+}
+
+const MOST_FACES = 5
+
+export function Faces({ people, label }) {
+  const extra = people.length - MOST_FACES
+  return (
+    <span className="faces" role="img" aria-label={label}>
+      {people.slice(0, MOST_FACES).map((person) => <Avatar key={person.id} person={person} small />)}
+      {extra > 0 && <span className="faces-more">+{extra}</span>}
+    </span>
   )
 }

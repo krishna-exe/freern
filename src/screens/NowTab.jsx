@@ -5,6 +5,7 @@ import { Avatar, FriendNote, MessageLink, statusLabel } from '../components/Pers
 
 const HOUR = 3600000
 const iso = (ms) => new Date(ms).toISOString()
+const NOTE_SHORTCUTS = ['Call me', 'Down to hang', 'Only texting']
 
 export function NowTab({ data, now, run, setMine, onAddFriends }) {
   const inState = (state) => data.friends
@@ -32,8 +33,6 @@ export function NowTab({ data, now, run, setMine, onAddFriends }) {
         </div>
       ))}
 
-      {on && onFriends.length > 0 && <p className="both-free" role="status">{bothFreeLabel(onFriends)}</p>}
-
       {data.friends.length === 0
         ? (
           <section className="empty">
@@ -44,7 +43,7 @@ export function NowTab({ data, now, run, setMine, onAddFriends }) {
         )
         : (
           <section>
-            <h2>Free now</h2>
+            <h2>{on && onFriends.length > 0 ? 'Free with you' : 'Free now'}</h2>
             {onFriends.length === 0
               ? <p className="note">Nobody’s free right now.</p>
               : <ul className="list">{onFriends.map((f) => <FreeRow key={f.id} friend={f} now={now} />)}</ul>}
@@ -61,12 +60,6 @@ export function NowTab({ data, now, run, setMine, onAddFriends }) {
   )
 }
 
-function bothFreeLabel(friends) {
-  const [first, ...others] = friends
-  if (others.length === 0) return `${first.name} is free too`
-  return `${first.name} and ${others.length} ${others.length === 1 ? 'other' : 'others'} are free too`
-}
-
 function Switch({ state, me, now, onToggle }) {
   const on = state === 'on'
   const detail = on
@@ -75,7 +68,10 @@ function Switch({ state, me, now, onToggle }) {
       ? `Free ${rangeLabel(me.freeFrom, me.freeUntil, now)}. Tap to go on now.`
       : 'Tap to go on for 2 hours.'
   return (
-    <button className={on ? 'hero on' : 'hero'} role="switch" aria-checked={on} onClick={onToggle}>
+    <button className={on ? 'hero on' : 'hero'} role="switch" aria-checked={on} onClick={() => {
+      navigator.vibrate?.(10) // A small buzz where phones allow it (not iPhones).
+      onToggle()
+    }}>
       <span className="hero-text">
         <strong>{on ? 'I’m on' : 'I’m off'}</strong>
         <span>{detail}</span>
@@ -111,6 +107,9 @@ function TimeControls({ state, me, now, setMine }) {
     setMine(w.from, w.until, () => api.setTimes(w.from, w.until))
   }
 
+  // Once you're on, the useful question is how much longer.
+  const extend = (ms) => goFor(new Date(me.freeUntil).getTime() + ms)
+
   if (open) {
     return (
       <form className="time-form card" onSubmit={save}>
@@ -125,9 +124,20 @@ function TimeControls({ state, me, now, setMine }) {
   }
   return (
     <div className="chips" role="group" aria-label="Free for">
-      <button className="chip" onClick={() => goFor(Date.now() + HOUR)}>1 hr</button>
-      <button className="chip" onClick={() => goFor(Date.now() + 2 * HOUR)}>2 hrs</button>
-      {midnight - now > 2 * HOUR && <button className="chip" onClick={() => goFor(midnight)}>Till midnight</button>}
+      {state === 'on'
+        ? (
+          <>
+            <button className="chip" onClick={() => extend(HOUR / 2)}>+30 min</button>
+            <button className="chip" onClick={() => extend(HOUR)}>+1 hr</button>
+          </>
+        )
+        : (
+          <>
+            <button className="chip" onClick={() => goFor(Date.now() + HOUR)}>1 hr</button>
+            <button className="chip" onClick={() => goFor(Date.now() + 2 * HOUR)}>2 hrs</button>
+            {midnight - now > 2 * HOUR && <button className="chip" onClick={() => goFor(midnight)}>Till midnight</button>}
+          </>
+        )}
       <button className="chip" onClick={showCustom}>Custom</button>
       {state === 'later' && (
         <button className="chip" onClick={() => setMine(null, null, () => api.setFree(false))}>Clear</button>
@@ -140,15 +150,19 @@ function MyNote({ note, run }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
 
-  async function save(e) {
-    e.preventDefault()
-    await run(() => api.setNote(value))
+  async function saveNote(text) {
+    await run(() => api.setNote(text))
     setEditing(false)
   }
 
   if (editing) {
     return (
-      <form className="stack card note-form" onSubmit={save}>
+      <form className="stack card note-form" onSubmit={(e) => { e.preventDefault(); saveNote(value) }}>
+        <div className="chips" role="group" aria-label="Quick notes">
+          {NOTE_SHORTCUTS.map((text) => (
+            <button key={text} type="button" className="chip" onClick={() => saveNote(text)}>{text}</button>
+          ))}
+        </div>
         <label>
           <span className="label-row">Your note <span className="muted">{value.length}/60</span></span>
           <input value={value} maxLength={60} onChange={(e) => setValue(e.target.value)} required autoFocus />

@@ -19,7 +19,7 @@ export function Groups({ groups, friends, run }) {
 
   return (
     <section>
-      <h2>Groups</h2>
+      {groups.length > 0 && <h2>Groups</h2>}
       {groups.length > 0 && (
         <ul className="list groups">
           {groups.map((group) => (

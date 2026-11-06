@@ -47,6 +47,15 @@ const dayLabel = (t, now) => {
   return new Date(t).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+export const dayTimeLabel = (t, now) => {
+  const day = dayLabel(t, now)
+  const name = day.includes(' ') ? new Date(t).toLocaleDateString([], { weekday: 'short' }) : day
+  return `${name}, ${clock(t)}`
+}
+export const dateParts = (t) => ({
+  day: new Date(t).getDate(),
+  month: new Date(t).toLocaleDateString([], { month: 'short' }),
+})
 export const whenLabel = (t, now) => `${dayLabel(t, now)}, ${clock(t)}`
 export const rangeLabel = (from, until, now) => `${dayLabel(from, now)}, ${clock(from)} – ${clock(until)}`
 

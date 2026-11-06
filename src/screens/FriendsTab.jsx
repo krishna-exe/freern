@@ -3,7 +3,7 @@ import * as api from '../lib/api'
 import { freeState } from '../lib/times'
 import { Avatar, FriendNote, MessageLink, Person, statusLabel } from '../components/Person'
 import { Groups } from './Groups'
-import { Profile } from './Profile'
+import { ProfileCard } from './Profile'
 
 const STATE_ORDER = { on: 0, later: 1, off: 2 }
 
@@ -23,7 +23,7 @@ const ADD_MESSAGES = {
   not_found: (h) => `No one has the ID @${h}. Check the spelling.`,
 }
 
-export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemoveFriend, onBlock, onSignOut, onNewRecoveryCode, onDeleteAccount }) {
+export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemoveFriend, onBlock, onOpenSettings }) {
   const [adding, setAdding] = useState(Boolean(invite))
   const [value, setValue] = useState(invite)
   const [message, setMessage] = useState('')
@@ -60,7 +60,14 @@ export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemov
   return (
     <>
       <header className="tab-header">
-        <h1>Friends</h1>
+        <h1 className="grow">Friends</h1>
+        <button className="icon-button" aria-label="Settings" onClick={onOpenSettings}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+            <circle cx="16" cy="7" r="2" />
+            <circle cx="8" cy="17" r="2" />
+          </svg>
+        </button>
         {!adding && <button className="primary small" onClick={() => { setAdding(true); setMessage('') }}>Add friend</button>}
       </header>
 
@@ -125,23 +132,7 @@ export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemov
 
       {friends.length > 0 && <Groups groups={data.groups} friends={friends} run={run} />}
 
-      {data.blocked.length > 0 && (
-        <section>
-          <h2>Blocked</h2>
-          <ul className="list">
-            {data.blocked.map((p) => (
-              <li key={p.id} className="row">
-                <Avatar person={p} />
-                <Person person={p} />
-                <button className="quiet" aria-label={`Unblock ${p.name}`} onClick={() => run(() => api.unblockUser(p.id))}>Unblock</button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <Profile me={data.me} run={run} onNewRecoveryCode={onNewRecoveryCode}
-        onDeleteAccount={onDeleteAccount} onSignOut={onSignOut} />
+      <ProfileCard me={data.me} />
     </>
   )
 }

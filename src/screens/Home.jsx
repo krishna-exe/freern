@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as api from '../lib/api'
+import { setAppBadge } from '../lib/appBadge'
 import { handleFromHash } from '../lib/invite'
 import { disablePush } from '../lib/push'
 import { PLAN_VISIBLE_AFTER_START_MS } from '../lib/times'
@@ -7,10 +8,12 @@ import { usePullToRefresh } from '../lib/usePullToRefresh'
 import { useUndo } from '../lib/useUndo'
 import { NotifyPrompt } from '../components/NotifyPrompt'
 import { RecoveryCode, RecoveryPrompt } from '../components/Recovery'
+import { Skeleton } from '../components/Skeleton'
 import { TabBar } from '../components/TabBar'
 import { FriendsTab } from './FriendsTab'
 import { NowTab } from './NowTab'
 import { PlansTab } from './PlansTab'
+import { Settings } from './Settings'
 
 // Which plans this device has shown, for the badge on the Plans tab.
 function readSeenPlans(myId) {
@@ -137,6 +140,13 @@ export function Home({ myId }) {
     setSeenPlans(new Set(ids))
   }, [tab, planIds, myId])
 
+  const newPlans = tab === 'plans' ? 0 : plans.filter((p) => p.host.id !== myId && !p.myAnswer && !seenPlans.has(p.id)).length
+  const newRequests = data?.incoming.length ?? 0
+
+  useEffect(() => {
+    setAppBadge(newPlans + newRequests)
+  }, [newPlans, newRequests])
+
   function openTab(next) {
     setTab(next)
     setActionError('')
@@ -144,10 +154,9 @@ export function Home({ myId }) {
   }
 
   const error = actionError || loadError
-  if (!data) return <main className="page">{error ? <p className="error" role="alert">{error}</p> : <p className="note">Loading…</p>}</main>
+  if (!data && !error) return <Skeleton />
+  if (!data) return <main className="page"><p className="error" role="alert">{error}</p></main>
   if (!data.me) return <main className="page"><p className="error">Account not found.</p><button className="link" onClick={api.signOut}>Sign out</button></main>
-
-  const newPlans = tab === 'plans' ? 0 : plans.filter((p) => p.host.id !== myId && !p.myAnswer && !seenPlans.has(p.id)).length
 
   const visible = {
     ...data,
@@ -200,11 +209,18 @@ export function Home({ myId }) {
         {tab === 'friends' && (
           <FriendsTab data={visible} myId={myId} now={now} run={run}
             invite={invite} onInviteUsed={() => setInvite('')}
-            onRemoveFriend={removeFriend} onBlock={blockPerson} onSignOut={signOut}
-            onNewRecoveryCode={createRecoveryCode} onDeleteAccount={deleteAccount} />
+            onRemoveFriend={removeFriend} onBlock={blockPerson} onOpenSettings={() => openTab('settings')} />
         )}
-        {tab === 'now' && !data.me.hasRecoveryCode && !recoveryCode && <RecoveryPrompt onCreate={createRecoveryCode} />}
-        {tab === 'now' && data.friends.length > 0 && <NotifyPrompt />}
+        {tab === 'settings' && (
+          <Settings me={data.me} blocked={data.blocked} run={run} onBack={() => openTab('friends')}
+            onNewRecoveryCode={createRecoveryCode} onDeleteAccount={deleteAccount} onSignOut={signOut} />
+        )}
+        {tab === 'now' && !recoveryCode && (
+          // One prompt at a time, and the one that protects the account goes first.
+          data.me.hasRecoveryCode
+            ? data.friends.length > 0 && <NotifyPrompt />
+            : <RecoveryPrompt onCreate={createRecoveryCode} />
+        )}
       </main>
       {pending && (
         <div className="toast" role="status">
@@ -212,7 +228,7 @@ export function Home({ myId }) {
           <button onClick={undo}>Undo</button>
         </div>
       )}
-      <TabBar tab={tab} badges={{ plans: newPlans, friends: data.incoming.length }} onOpen={openTab} />
+      <TabBar tab={tab === 'settings' ? 'friends' : tab} badges={{ plans: newPlans, friends: newRequests }} onOpen={openTab} />
     </>
   )
 }

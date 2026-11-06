@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as api from '../lib/api'
-import { planShortcuts, toDateTimeInput, whenLabel } from '../lib/times'
+import { dateParts, dayTimeLabel, planShortcuts, toDateTimeInput } from '../lib/times'
+import { Faces } from '../components/Person'
 
 export function PlansTab({ plans, groups, myId, now, run, onDelete }) {
   const [creating, setCreating] = useState(false)
@@ -71,20 +72,27 @@ export function PlansTab({ plans, groups, myId, now, run, onDelete }) {
 function PlanCard({ plan, mine, now, run, onDelete }) {
   const started = new Date(plan.startsAt).getTime() <= now
   const answer = (next) => run(() => api.answerPlan(plan.id, plan.myAnswer === next ? null : next))
+  const { day, month } = dateParts(plan.startsAt)
 
   return (
     <li className="card plan">
+      <span className="date-block" aria-hidden="true">
+        <span className="date-day">{day}</span>
+        <span className="date-month">{month}</span>
+      </span>
       <div className="plan-text">
         <span className="plan-when">
-          {started ? <span className="happening">Happening now</span> : whenLabel(plan.startsAt, now)}
+          {started ? <span className="happening">Happening now</span> : dayTimeLabel(plan.startsAt, now)}
         </span>
         {plan.note && <span className="plan-note">{plan.note}</span>}
         <span className="muted">{mine ? `Your plan${plan.groupName ? ` · ${plan.groupName}` : ''}` : plan.host.name}</span>
-        <span className="muted">{plan.inNames.length ? `In: ${plan.inNames.join(', ')}` : 'Nobody’s in yet'}</span>
+        {plan.inPeople.length > 0
+          ? <Faces people={plan.inPeople} label={`In: ${plan.inNames.join(', ')}`} />
+          : <span className="muted">Nobody’s in yet</span>}
         {plan.outNames.length > 0 && <span className="muted">Can’t: {plan.outNames.join(', ')}</span>}
       </div>
       {mine
-        ? <button className="quiet" onClick={() => onDelete(plan)}>Delete</button>
+        ? <button className="quiet plan-delete" onClick={() => onDelete(plan)}>Delete</button>
         : (
           <div className="plan-actions">
             <button className="answer" aria-pressed={plan.myAnswer === 'in'} onClick={() => answer('in')}>I’m in</button>

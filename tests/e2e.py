@@ -28,6 +28,11 @@ def set_switch(p, on):
         switch.click()
     expect(switch).to_have_attribute('aria-checked', 'true' if on else 'false')
 
+def open_settings(p):
+    tab(p, 'Friends')
+    p.get_by_role('button', name='Settings', exact=True).click()
+    expect(p.get_by_role('heading', name='Settings')).to_be_visible()
+
 def no_scroll(p, label):
     assert p.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), f'h-scroll on {label}'
 
@@ -37,6 +42,12 @@ with sync_playwright() as pw:
     # A fixed timezone, to prove notification times follow the phone's.
     ca = br.new_context(**phone, timezone_id='Asia/Kolkata', locale='en-GB'); cb = br.new_context(**phone, color_scheme='dark'); cc = br.new_context(**phone)
     ca.grant_permissions(['clipboard-read', 'clipboard-write'])
+    # Record the two calls a headless browser can't show.
+    ca.add_init_script('''
+      navigator.vibrate = (ms) => { window.vibrated = ms; return true }
+      navigator.setAppBadge = (n) => { window.appBadge = n; return Promise.resolve() }
+      navigator.clearAppBadge = () => { window.appBadge = 0; return Promise.resolve() }
+    ''')
     pa = ca.new_page(); pb = cb.new_page(); pc = cc.new_page()
     errs = []
     for p in (pa, pb, pc):
@@ -60,6 +71,7 @@ with sync_playwright() as pw:
     pa.route('**/rpc/set_free', lambda r: held.append(r))
     sw.click()
     expect(sw).to_have_attribute('aria-checked', 'true', timeout=1000)
+    assert pa.evaluate('window.vibrated') == 10
     assert held, 'write was not attempted'
     print('ok optimistic: on while request is still pending')
     held[0].continue_()
@@ -88,6 +100,16 @@ with sync_playwright() as pw:
     expect(pa.get_by_role('switch')).to_have_attribute('aria-checked', 'true')
     print('ok 1 hr chip persisted')
 
+    # Once on, the choices become how much longer
+    sw = pa.get_by_role('switch')
+    assert pa.get_by_role('button', name='1 hr', exact=True).count() == 0
+    earlier = sw.inner_text()
+    with pa.expect_response('**/rpc/set_times') as saved:
+        pa.get_by_role('button', name='+30 min').click()
+    assert saved.value.ok
+    expect(sw).not_to_have_text(earlier)
+    print('ok extend:', sw.inner_text().replace(chr(10), ' '))
+
     # Share link, friend lands on Friends with ID filled in
     sw = pa.get_by_role('switch')
     tab(pa, 'Friends')
@@ -112,7 +134,8 @@ with sync_playwright() as pw:
     # Badge appears live on the other person
     tab(pa, 'Now')
     expect(pa.get_by_role('navigation').get_by_role('button', name='Friends, 1 new')).to_be_visible()
-    print('ok request badge live')
+    assert pa.evaluate('window.appBadge') == 1, pa.evaluate('window.appBadge')
+    print('ok request badge live, on the tab and the app icon')
     tab(pa, 'Friends')
     pa.screenshot(path=f'{H}/t2-friends-request.png')
     pa.locator('.row', has_text='Aayush').get_by_role('button', name='Accept').click()
@@ -180,7 +203,9 @@ with sync_playwright() as pw:
     fp.get_by_role('button', name='I’m in').click()
     expect(fp.get_by_role('button', name='I’m in')).to_have_attribute('aria-pressed', 'true')
     host_plan = pa.locator('.plan', has_text='Your plan')
-    expect(host_plan).to_contain_text('In: Aayush')
+    expect(host_plan.locator('.faces')).to_have_attribute('aria-label', 'In: Aayush')
+    expect(host_plan.locator('.faces .avatar')).to_have_count(1)
+    pa.screenshot(path=f'{H}/u-plan-faces.png')
     fp.get_by_role('button', name='Can’t make it').click()
     expect(host_plan).to_contain_text('Can’t: Aayush')
     expect(host_plan).to_contain_text('Nobody’s in yet')
@@ -227,6 +252,8 @@ with sync_playwright() as pw:
     pa.locator('.friend', has_text='Aayush').get_by_role('button').first.click()
     pa.screenshot(path=f'{H}/t9-friends-light.png', full_page=True)
 
+    # Settings has moved off the Friends tab
+    assert pa.get_by_role('button', name='Sign out').count() == 0
     # Every tab holds at phone-narrow width
     pa.set_viewport_size({'width': 320, 'height': 640})
     for name in ('Friends', 'Plans', 'Now'):
@@ -234,6 +261,9 @@ with sync_playwright() as pw:
         pa.wait_for_timeout(200)
         no_scroll(pa, name)
         pa.screenshot(path=f'{H}/t10-narrow-{name}.png')
+    open_settings(pa)
+    no_scroll(pa, 'Settings')
+    pa.screenshot(path=f'{H}/u-narrow-settings.png', full_page=True)
     tab(pa, 'Plans')
     pa.get_by_role('button', name='New plan').click()
     no_scroll(pa, 'plan form')
@@ -247,7 +277,7 @@ with sync_playwright() as pw:
     print('ok 320px on every tab')
 
     # Last element isn't trapped under the fixed nav
-    tab(pa, 'Friends')
+    open_settings(pa)
     pa.evaluate('window.scrollTo(0, document.body.scrollHeight)')
     box = pa.get_by_role('button', name='Sign out').bounding_box()
     nav = pa.get_by_role('navigation').bounding_box()
@@ -257,6 +287,7 @@ with sync_playwright() as pw:
     # Picture: pick, friend sees it live, back to initials
     tab(pb, 'Friends')
     pb.wait_for_timeout(3000)
+    open_settings(pa)
     pa.get_by_role('button', name='Change picture').click()
     assert pa.get_by_role('group', name='Profile picture').get_by_role('button').count() == 21
     pa.screenshot(path=f'{H}/t12-picker.png', full_page=True)
@@ -277,6 +308,10 @@ with sync_playwright() as pw:
     # Note: add, friend sees it live, survives the switch, edit, expires, clear
     tab(pa, 'Now')
     pa.get_by_role('button', name='Add a note').click()
+    pa.get_by_role('button', name='Down to hang').click()
+    expect(pa.locator('.my-note')).to_contain_text('Down to hang')
+    print('ok note shortcut saved in one tap')
+    pa.get_by_role('button', name='Edit').click()
     box = pa.get_by_label('Your note')
     box.fill('x' * 80)
     assert len(box.input_value()) == 60
@@ -339,6 +374,16 @@ with sync_playwright() as pw:
     expect(pa.get_by_text('No plans yet')).to_be_visible()
     print('ok plan deleted after the undo window')
 
+    # First load shows shapes, not a blank page
+    pa.route('**/rpc/get_home', lambda r: None)
+    pa.reload(wait_until='domcontentloaded')
+    expect(pa.locator('.skeleton-hero')).to_be_visible()
+    pa.screenshot(path=f'{H}/u-skeleton.png')
+    pa.unroute('**/rpc/get_home')  # Lets the held request through.
+    expect(pa.get_by_role('navigation')).to_be_visible()
+    expect(pa.locator('.skeleton-hero')).to_have_count(0)
+    print('ok skeleton')
+
     # Pull to refresh
     tab(pa, 'Now')
     with pa.expect_response('**/rpc/get_home') as refreshed:
@@ -400,8 +445,8 @@ with sync_playwright() as pw:
     print('ok recovery code shown once, prompt gone')
 
     # Edit name, live for friends
-    tab(pa, 'Friends')
     tab(pb, 'Friends')
+    open_settings(pa)
     pa.get_by_role('button', name='Edit name').click()
     pa.get_by_label('Your name').fill('Krishna R')
     pa.get_by_role('button', name='Save').click()
@@ -409,6 +454,7 @@ with sync_playwright() as pw:
     expect(pb.locator('.friend', has_text='Krishna R')).to_be_visible()
     pa.screenshot(path=f'{H}/s3-friends.png', full_page=True)
     print('ok edit name, live')
+    tab(pa, 'Friends')
 
     # Block: gone both ways, reversible, and they can't re-request
     fr = pb.locator('.friend', has_text='Krishna R')
@@ -421,6 +467,7 @@ with sync_playwright() as pw:
     fr.get_by_role('button').first.click()
     pb.get_by_role('button', name='Block Krishna R').click()
     pb.wait_for_timeout(6000)
+    open_settings(pb)
     expect(pb.get_by_role('heading', name='Blocked')).to_be_visible()
     expect(pa.locator('.friend', has_text='Aayush')).to_have_count(0)
     pa.get_by_role('button', name='Add friend').click()
@@ -431,6 +478,7 @@ with sync_playwright() as pw:
     pb.get_by_role('button', name='Unblock Krishna R').click()
     expect(pb.get_by_role('heading', name='Blocked')).to_have_count(0)
     print('ok block, undo, cannot re-request, unblock')
+    tab(pb, 'Friends')
     # Back to friends for the steps below
     pa.get_by_role('button', name='Add friend').click()
     pa.get_by_label('Friend’s user ID').fill(b)
@@ -440,6 +488,7 @@ with sync_playwright() as pw:
     expect(pa.locator('.friend', has_text='Aayush')).to_be_visible()
 
     # WhatsApp and usual times show for friends
+    open_settings(pa)
     pa.get_by_role('button', name='WhatsApp & free times').click()
     pa.get_by_label('WhatsApp number (optional)').fill('12')
     pa.get_by_role('button', name='Save').click()
@@ -500,10 +549,10 @@ with sync_playwright() as pw:
     # "Free too" appears only when you're both on
     tab(pa, 'Now')
     set_switch(pa, False)
-    expect(pa.locator('.both-free')).to_have_count(0)
+    expect(pa.get_by_role('heading', name='Free now')).to_be_visible()
     set_switch(pa, True)
-    expect(pa.locator('.both-free')).to_contain_text('free too')
-    print('ok free too:', pa.locator('.both-free').inner_text())
+    expect(pa.get_by_role('heading', name='Free with you')).to_be_visible()
+    print('ok free with you')
     pa.screenshot(path=f'{H}/s5-both-free.png')
     set_switch(pa, False)
 
@@ -560,6 +609,7 @@ with sync_playwright() as pw:
     pa.get_by_role('button', name='Remove Aayush').click()
     expect(pa.locator('.friend')).to_have_count(1)
     print('ok remove with undo')
+    open_settings(pa)
     pa.get_by_role('button', name='Sign out').click()
     expect(pa.get_by_role('button', name='New here?')).to_be_visible()
     pa.get_by_label('User ID', exact=True).fill(a); pa.get_by_label('Password').fill('wrongpass')
@@ -575,7 +625,7 @@ with sync_playwright() as pw:
     # Forgot password, using the code saved above
     if os.environ.get('FUNCTIONS_DEPLOYED'):
         pa.get_by_role('navigation').wait_for()
-        tab(pa, 'Friends')
+        open_settings(pa)
         pa.get_by_role('button', name='Sign out').click()
         pa.get_by_role('button', name='Forgot password?').click()
         pa.get_by_label('User ID').fill(a)
@@ -593,7 +643,7 @@ with sync_playwright() as pw:
         print('ok reset password with recovery code')
 
     # Delete account: needs your ID typed, and sends you to sign in
-    tab(pc, 'Friends')
+    open_settings(pc)
     pc.get_by_role('button', name='Delete account').click()
     confirm = pc.get_by_role('button', name='Delete my account')
     expect(confirm).to_be_disabled()
@@ -648,7 +698,7 @@ with sync_playwright() as pw:
         print(f"ok push {kind}: {note['title']} / {note['body']}")
 
     # Settings explains why notifications aren't available here
-    tab(pa, 'Friends')
+    open_settings(pa)
     pa.get_by_role('button', name='Notifications').click()
     expect(pa.locator('.settings-panel')).to_contain_text('blocked')
     pa.screenshot(path=f'{H}/s5-settings.png', full_page=True)

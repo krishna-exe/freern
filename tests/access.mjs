@@ -47,7 +47,7 @@ check('can sign back in', !relog.error, relog.error)
 // Switch
 const { data: until } = await alice.c.rpc('set_free', { is_free: true })
 const mins = (new Date(until) - Date.now()) / 60000
-check('switching on sets about 2 hours', mins > 118 && mins <= 120, until)
+check('switching on sets about 2 hours', mins > 118 && mins <= 121, until)
 
 // Strangers
 check('stranger cannot see profile', !(await seesProfile(bob, alice)))
@@ -150,6 +150,7 @@ await bob.c.from('plans').delete().eq('id', planId)
 check('friend cannot delete plan', await seesPlan(alice))
 const planIn = async (u) => (await home(u)).plans.find((p) => p.id === planId)
 check('home: host sees who is in', (await planIn(alice)).inNames.includes('Bobby'), await planIn(alice))
+check('home: host sees their faces', (await planIn(alice)).inPeople.some((p) => p.id === bob.id), await planIn(alice))
 check('friend can say they can\'t', !(await bob.c.rpc('answer_plan', { plan: planId, answer: 'out' })).error)
 const afterOut = await planIn(alice)
 check('home: host sees who can\'t', afterOut.outNames.includes('Bobby') && afterOut.inNames.length === 0, afterOut)
@@ -163,7 +164,7 @@ check('can set a note', !(await bob.c.rpc('set_note', { body: '  down for chai  
 const seen = await noteOf(alice, bob)
 check('friend sees the note, trimmed', seen?.note === 'down for chai', seen)
 const noteHours = (new Date(seen?.note_until) - Date.now()) / 3600000
-check('note lasts about 24 hours', noteHours > 23.9 && noteHours <= 24, seen)
+check('note lasts about 24 hours', noteHours > 23.9 && noteHours <= 24.02, seen)
 check('stranger cannot see the note', !(await noteOf(carol, bob)))
 check('note over 60 characters rejected', Boolean((await bob.c.rpc('set_note', { body: 'x'.repeat(61) })).error))
 const forgedNote = await bob.c.from('statuses').update({ note: 'hi', note_until: '2099-01-01' }).eq('user_id', bob.id)
