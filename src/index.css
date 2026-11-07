@@ -166,7 +166,6 @@ h2 { font-size: 15px; font-weight: 700; margin: 0 0 8px; color: var(--muted); }
 }
 .row-button:hover { background: var(--bg); }
 .row-button:focus-visible { outline-offset: -3px; }
-.row-extra { padding: 0 14px 8px 66px; }
 .danger-link {
   min-height: 44px;
   padding: 8px 0;
@@ -409,7 +408,6 @@ label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; font-wei
 .settings-panel { padding: 2px 14px 14px; display: grid; gap: 4px; }
 .chevron { color: var(--muted); font-size: 20px; line-height: 1; }
 .danger-text { color: var(--danger); }
-.row-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; }
 .danger {
   min-height: 44px;
   padding: 8px 14px;
@@ -470,6 +468,29 @@ label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; font-wei
   text-underline-offset: 3px;
 }
 .notify-toggle { font-size: 15px; font-weight: 500; }
+.row-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+}
+.last-connection { margin-top: 1px; color: var(--muted); font-size: 14px; }
+.drifting { color: var(--danger); font-weight: 500; }
+.friend-title { min-width: 0; overflow-wrap: anywhere; }
+.friend-card { display: flex; align-items: center; gap: 14px; }
+.when-line { color: var(--on); font-size: 15px; font-weight: 700; }
+.log-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.log-buttons .secondary { padding: 8px 4px; }
+.friend-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
+.history .row { min-height: 56px; padding: 6px 8px 6px 14px; }
+.history-when { display: block; }
+.friend-danger { display: flex; flex-wrap: wrap; gap: 0 20px; }
 .auth { padding-top: 12vh; padding-bottom: 32px; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,5 @@
 import { whatsappLink } from '../lib/api'
+import { connectionLabel, isDrifting } from '../lib/connections'
 import { activeNote, clock, freeState, rangeLabel } from '../lib/times'
 
 export function Avatar({ person, large, small }) {
@@ -29,6 +30,17 @@ export function statusLabel(friend, now) {
   if (state === 'on') return `till ${clock(friend.freeUntil)}`
   if (state === 'later') return rangeLabel(friend.freeFrom, friend.freeUntil, now)
   return ''
+}
+
+// How long it's been, under a friend's name. Stands out once it's been a while.
+export function LastConnection({ friend, now, showEmpty }) {
+  const last = friend.lastConnection
+  if (!last) return showEmpty ? <span className="last-connection">Nothing logged yet</span> : null
+  return (
+    <span className={isDrifting(last, now) ? 'last-connection drifting' : 'last-connection'}>
+      {connectionLabel(last, now)}
+    </span>
+  )
 }
 
 export function MessageLink({ friend, withLabel }) {

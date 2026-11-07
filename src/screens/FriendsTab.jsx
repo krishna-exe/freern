@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../lib/api'
 import { freeState } from '../lib/times'
-import { Avatar, FriendNote, MessageLink, Person, statusLabel } from '../components/Person'
+import { Avatar, FriendNote, LastConnection, Person, statusLabel } from '../components/Person'
 import { Groups } from './Groups'
 import { ProfileCard } from './Profile'
 
@@ -23,7 +23,7 @@ const ADD_MESSAGES = {
   not_found: (h) => `No one has the ID @${h}. Check the spelling.`,
 }
 
-export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemoveFriend, onBlock, onOpenSettings }) {
+export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onBlock, onOpenSettings, onOpenFriend }) {
   const [adding, setAdding] = useState(Boolean(invite))
   const [value, setValue] = useState(invite)
   const [message, setMessage] = useState('')
@@ -106,8 +106,7 @@ export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemov
       )}
 
       {friends.length > 0
-        ? <ul className="list">{friends.map((f) => <FriendRow key={f.id} friend={f} now={now} run={run} onNudged={setMessage}
-          onRemove={() => onRemoveFriend(f)} onBlock={() => onBlock(f)} />)}</ul>
+        ? <ul className="list">{friends.map((f) => <FriendRow key={f.id} friend={f} now={now} onOpen={() => onOpenFriend(f.id)} />)}</ul>
         : data.incoming.length === 0 && !adding && (
           <section className="empty">
             <p className="empty-title">No friends yet</p>
@@ -137,40 +136,18 @@ export function FriendsTab({ data, myId, now, run, invite, onInviteUsed, onRemov
   )
 }
 
-// Remove stays out of the way until you tap a person.
-function FriendRow({ friend, now, run, onNudged, onRemove, onBlock }) {
-  const [open, setOpen] = useState(false)
+function FriendRow({ friend, now, onOpen }) {
   const state = freeState(friend.freeFrom, friend.freeUntil, now)
-
-  async function askIfFree() {
-    const result = await run(() => api.nudge(friend.id))
-    if (result) onNudged(result === 'sent' ? `Asked ${friend.name} if they’re free.` : `You already asked ${friend.name} recently.`)
-  }
-
   return (
     <li className={state === 'on' ? 'friend is-on' : 'friend'}>
-      <button className="row row-button" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className="row row-button" onClick={onOpen}>
         <Avatar person={friend} />
         <Person person={friend}>
           <FriendNote friend={friend} now={now} />
-          {friend.usually && <span className="handle wrap">Usually {friend.usually}</span>}
+          <LastConnection friend={friend} now={now} showEmpty />
         </Person>
         <span className="when">{statusLabel(friend, now)}</span>
       </button>
-      {open && (
-        <div className="row-extra">
-          <MessageLink friend={friend} withLabel />
-          {state === 'off' && <button className="text-action" onClick={askIfFree}>You free?</button>}
-          <label className="check notify-toggle">
-            <input type="checkbox" defaultChecked={!friend.muted}
-              onChange={(e) => run(() => api.setFriendNotify(friend.id, e.target.checked))} />
-            Notify me
-          </label>
-          <button className="danger-link" aria-label={`Remove ${friend.name}`}
-            onClick={onRemove}>Remove friend</button>
-          <button className="danger-link" aria-label={`Block ${friend.name}`} onClick={onBlock}>Block</button>
-        </div>
-      )}
     </li>
   )
 }

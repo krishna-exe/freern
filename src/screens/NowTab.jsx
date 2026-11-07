@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import * as api from '../lib/api'
 import { activeNote, clock, freeState, rangeLabel, resolveWindow, toTimeInput } from '../lib/times'
-import { Avatar, FriendNote, MessageLink, statusLabel } from '../components/Person'
+import { Avatar, FriendNote, LastConnection, MessageLink, statusLabel } from '../components/Person'
 
 const HOUR = 3600000
 const iso = (ms) => new Date(ms).toISOString()
 const NOTE_SHORTCUTS = ['Call me', 'Down to hang', 'Only texting']
 
-export function NowTab({ data, now, run, setMine, onAddFriends }) {
+export function NowTab({ data, now, run, setMine, onAddFriends, onOpenFriend }) {
   const inState = (state) => data.friends
     .filter((f) => freeState(f.freeFrom, f.freeUntil, now) === state)
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -46,14 +46,14 @@ export function NowTab({ data, now, run, setMine, onAddFriends }) {
             <h2>{on && onFriends.length > 0 ? 'Free with you' : 'Free now'}</h2>
             {onFriends.length === 0
               ? <p className="note">Nobody’s free right now.</p>
-              : <ul className="list">{onFriends.map((f) => <FreeRow key={f.id} friend={f} now={now} />)}</ul>}
+              : <ul className="list">{onFriends.map((f) => <FreeRow key={f.id} friend={f} now={now} onOpen={() => onOpenFriend(f.id)} />)}</ul>}
           </section>
         )}
 
       {laterFriends.length > 0 && (
         <section>
           <h2>Free later</h2>
-          <ul className="list">{laterFriends.map((f) => <FreeRow key={f.id} friend={f} now={now} />)}</ul>
+          <ul className="list">{laterFriends.map((f) => <FreeRow key={f.id} friend={f} now={now} onOpen={() => onOpenFriend(f.id)} />)}</ul>
         </section>
       )}
     </>
@@ -187,16 +187,19 @@ function MyNote({ note, run }) {
   )
 }
 
-function FreeRow({ friend, now }) {
+function FreeRow({ friend, now, onOpen }) {
   const on = freeState(friend.freeFrom, friend.freeUntil, now) === 'on'
   return (
     <li className={on ? 'row is-on' : 'row'}>
-      <Avatar person={friend} />
-      <span className="person">
-        <span className="name">{friend.name}</span>
-        <FriendNote friend={friend} now={now} />
-      </span>
-      <span className="when">{statusLabel(friend, now)}</span>
+      <button className="row-open" onClick={onOpen}>
+        <Avatar person={friend} />
+        <span className="person">
+          <span className="name">{friend.name}</span>
+          <FriendNote friend={friend} now={now} />
+          <LastConnection friend={friend} now={now} />
+        </span>
+        <span className="when">{statusLabel(friend, now)}</span>
+      </button>
       <MessageLink friend={friend} />
     </li>
   )

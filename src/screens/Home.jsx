@@ -10,6 +10,7 @@ import { NotifyPrompt } from '../components/NotifyPrompt'
 import { RecoveryCode, RecoveryPrompt } from '../components/Recovery'
 import { Skeleton } from '../components/Skeleton'
 import { TabBar } from '../components/TabBar'
+import { FriendPage } from './FriendPage'
 import { FriendsTab } from './FriendsTab'
 import { NowTab } from './NowTab'
 import { PlansTab } from './PlansTab'
@@ -40,6 +41,9 @@ export function Home({ myId }) {
   const [invite, setInvite] = useState(handleFromHash)
   const [tab, setTab] = useState(() => (handleFromHash() ? 'friends' : 'now'))
   const [seenPlans, setSeenPlans] = useState(() => readSeenPlans(myId))
+  const [openFriendId, setOpenFriendId] = useState(null)
+  // Where a friend's page goes back to, and which tab stays lit while it's open.
+  const [friendPageFrom, setFriendPageFrom] = useState('friends')
   const writes = useRef(0)
   const refreshTimer = useRef(null)
   const [recoveryCode, setRecoveryCode] = useState('')
@@ -153,6 +157,12 @@ export function Home({ myId }) {
     window.scrollTo(0, 0)
   }
 
+  function openFriend(id) {
+    setFriendPageFrom(tab)
+    setOpenFriendId(id)
+    openTab('friend')
+  }
+
   const error = actionError || loadError
   if (!data && !error) return <Skeleton />
   if (!data) return <main className="page"><p className="error" role="alert">{error}</p></main>
@@ -164,6 +174,11 @@ export function Home({ myId }) {
     friends: data.friends.filter((f) => f.id !== hiddenId),
     incoming: data.incoming.filter((p) => p.id !== hiddenId),
   }
+
+  // The page falls back to the list if this friend has just gone, say while a
+  // removal is waiting out its undo window.
+  const openFriendData = tab === 'friend' ? visible.friends.find((f) => f.id === openFriendId) : null
+  const screen = tab === 'friend' && !openFriendData ? friendPageFrom : tab
 
   const removeFriend = (friend) => schedule({
     message: `Removed ${friend.name}`,
@@ -204,18 +219,23 @@ export function Home({ myId }) {
       <main className="page">
         {error && <p className="error" role="alert">{error}</p>}
         {recoveryCode && <RecoveryCode code={recoveryCode} onDone={() => setRecoveryCode('')} />}
-        {tab === 'now' && <NowTab data={visible} now={now} run={run} setMine={setMine} onAddFriends={() => openTab('friends')} />}
-        {tab === 'plans' && <PlansTab plans={plans} groups={data.groups} myId={myId} now={now} run={run} onDelete={deletePlan} />}
-        {tab === 'friends' && (
+        {screen === 'now' && <NowTab data={visible} now={now} run={run} setMine={setMine} onAddFriends={() => openTab('friends')} onOpenFriend={openFriend} />}
+        {screen === 'plans' && <PlansTab plans={plans} groups={data.groups} myId={myId} now={now} run={run} onDelete={deletePlan} />}
+        {screen === 'friend' && (
+          <FriendPage key={openFriendData.id} friend={openFriendData} now={now} run={run}
+            onBack={() => openTab(friendPageFrom)}
+            onRemove={() => removeFriend(openFriendData)} onBlock={() => blockPerson(openFriendData)} />
+        )}
+        {screen === 'friends' && (
           <FriendsTab data={visible} myId={myId} now={now} run={run}
             invite={invite} onInviteUsed={() => setInvite('')}
-            onRemoveFriend={removeFriend} onBlock={blockPerson} onOpenSettings={() => openTab('settings')} />
+            onBlock={blockPerson} onOpenSettings={() => openTab('settings')} onOpenFriend={openFriend} />
         )}
-        {tab === 'settings' && (
+        {screen === 'settings' && (
           <Settings me={data.me} blocked={data.blocked} run={run} onBack={() => openTab('friends')}
             onNewRecoveryCode={createRecoveryCode} onDeleteAccount={deleteAccount} onSignOut={signOut} />
         )}
-        {tab === 'now' && !recoveryCode && (
+        {screen === 'now' && !recoveryCode && (
           // One prompt at a time, and the one that protects the account goes first.
           data.me.hasRecoveryCode
             ? data.friends.length > 0 && <NotifyPrompt />
@@ -228,7 +248,7 @@ export function Home({ myId }) {
           <button onClick={undo}>Undo</button>
         </div>
       )}
-      <TabBar tab={tab === 'settings' ? 'friends' : tab} badges={{ plans: newPlans, friends: newRequests }} onOpen={openTab} />
+      <TabBar tab={{ settings: 'friends', friend: friendPageFrom }[tab] ?? tab} badges={{ plans: newPlans, friends: newRequests }} onOpen={openTab} />
     </>
   )
 }
